@@ -75,6 +75,7 @@ from vllm.sampling_params import BeamSearchParams, RequestOutputKind, SamplingPa
 from vllm.tasks import PoolingTask
 from vllm.tokenizers import TokenizerLike
 from vllm.tokenizers.mistral import MistralTokenizer
+from vllm.tracing import get_trace_headers_from_current_context
 from vllm.usage.usage_lib import UsageContext
 from vllm.utils.collection_utils import as_iter, is_list_of
 from vllm.utils.counter import Counter
@@ -1698,6 +1699,10 @@ class LLM:
             tokenization_kwargs,
         )
 
+        # Automatically detect trace context from current OpenTelemetry span
+        # This enables distributed tracing in offline inference scenarios
+        trace_headers = get_trace_headers_from_current_context()
+
         engine_request = self.input_processor.process_inputs(
             request_id,
             engine_prompt,
@@ -1705,6 +1710,7 @@ class LLM:
             lora_request=lora_request,
             tokenization_kwargs=tokenization_kwargs,
             priority=priority,
+            trace_headers=trace_headers,
         )
         return engine_request, tokenization_kwargs
 

@@ -99,6 +99,40 @@ def extract_trace_headers(headers: Mapping[str, str]) -> Mapping[str, str]:
     return {h: headers[h] for h in TRACE_HEADERS if h in headers}
 
 
+def get_trace_headers_from_current_context() -> Mapping[str, str] | None:
+    """
+    Extract trace headers from the current OpenTelemetry context.
+
+    This function checks if there's an active span in the current context
+    and extracts the trace headers (traceparent, tracestate) from it.
+    This enables automatic trace context propagation in offline inference
+    scenarios where users have an active span.
+
+    Returns:
+        A mapping containing trace headers if an active span exists,
+        None otherwise.
+    """
+    if not is_otel_available():
+        return None
+
+    from opentelemetry import trace
+    from opentelemetry.context import get_current
+
+    current_span = trace.get_current_span()
+    span_context = current_span.get_span_context()
+
+    if not span_context.is_valid:
+        return None
+
+    carrier: dict[str, str] = {}
+    TraceContextTextMapPropagator().inject(carrier, context=get_current())
+
+    if not carrier:
+        return None
+
+    return carrier
+
+
 class SpanAttributes:
     # Attribute names copied from here to avoid version conflicts:
     # https://github.com/open-telemetry/semantic-conventions/blob/main/docs/gen-ai/gen-ai-spans.md
